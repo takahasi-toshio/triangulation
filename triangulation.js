@@ -21,6 +21,33 @@ function triangulation()
     polygon.addVertex( new Vertex( 286, 280 ) );
     polygon.addVertex( new Vertex( 380, 335 ) );
 
+    var queue = new Array;
+    for( var i = 0; i < polygon.vertexCount(); ++i )
+    {
+        var vertex = polygon.vertexAt( i );
+        queue.push( vertex );
+    }
+    queue.sort( function( a, b ) {
+        if( a.getY() < b.getY() ) {
+            return -1;
+        }
+        else if( a.getY() > b.getY() ) {
+            return 1;
+        }
+        else
+        {
+            if( a.getX() < b.getX() ) {
+                return -1;
+            }
+            else if( a.getX() > b.getX() ) {
+                return 1;
+            }
+            else {
+                return 0;
+            }
+        }
+    } );
+
     var canvas = document.getElementById( "canvas" );
     var context = canvas.getContext( "2d" );
 
@@ -84,6 +111,7 @@ Polygon.prototype.addVertex = function( vertex ) {
         vertex.setPreviousVertex( this.vertices[this.vertices.length - 1] );
         this.vertices[0].setPreviousVertex( vertex );
     }
+    vertex.setIndex( this.vertices.length );
     this.vertices.push( vertex );
     this.edges.push( new Edge( vertex ) );
 }
@@ -102,6 +130,8 @@ function Vertex( x, y )
     this.y = y;
     this.nextVertex = null;
     this.previousVertex = null;
+    this.edge = null;
+    this.index = 0;
 }
 
 Vertex.prototype.getX = function() {
@@ -126,6 +156,14 @@ Vertex.prototype.getNextVertex = function() {
 
 Vertex.prototype.getPreviousVertex = function() {
     return this.previousVertex;
+}
+
+Vertex.prototype.setIndex = function( index ) {
+    this.index = index;
+}
+
+Vertex.prototype.getIndex = function() {
+    return this.index;
 }
 
 Vertex.prototype.getVertexType = function() {
@@ -159,9 +197,22 @@ Vertex.prototype.getVertexType = function() {
     return "regular";
 }
 
+Vertex.prototype.setEdge = function( edge ) {
+    this.edge = edge;
+}
+
+Vertex.prototype.getEdge = function() {
+    return this.edge;
+}
+
 function Edge( vertex )
 {
     this.vertex = vertex;
+    vertex.setEdge( this );
+}
+
+Edge.prototype.getVertex = function() {
+    return this.vertex;
 }
 
 function Segment( start, end )
@@ -187,5 +238,83 @@ Segment.prototype.getPosition = function( vertex ) {
     else
     {
         return "online";
+    }
+}
+
+function EdgeTree()
+{
+    this.edges = [];
+}
+
+EdgeTree.prototype.getMinX = function( edge ) {
+    var start = edge.getVertex();
+    var end = start.getNextVertex();
+    if( start.getX() < end.getX() )
+    {
+        return start.getX();
+    }
+    else
+    {
+        return end.getX();
+    }
+}
+
+EdgeTree.prototype.compare = function( a, b ) {
+    var ax = this.getMinX( a );
+    var bx = this.getMinX( b );
+    if( ax < bx )
+    {
+        return -1;
+    }
+    else if( ax > bx )
+    {
+        return 1;
+    }
+    else
+    {
+        if( a.getIndex() < b.getIndex() )
+        {
+            return -1;
+        }
+        else if( a.getIndex() > b.getIndex() )
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+}
+
+Edge.prototype.lower_bound = function( edge ) {
+    if( this.edges.length == 0 )
+    {
+        return -1;
+    }
+
+    var min = 0;
+    var max = this.edges.length;
+    var current = ( max - min ) / 2;
+    var ret = this.compare( edge, this.edges[current] );
+    if( ret < 0 )
+    {
+        var next = current + ( max - current ) / 2;
+        if( next == current )
+        {
+            return -1;
+        }
+        else
+        {
+            min = current;
+            current = next;
+        }
+    }
+    else if( ret > 0 )
+    {
+        var next = current - ( current - min ) / 2;
+    }
+    else
+    {
     }
 }
