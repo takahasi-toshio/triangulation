@@ -287,34 +287,25 @@ EdgeTree.prototype.compare = function( a, b ) {
     }
 }
 
-Edge.prototype.lower_bound = function( edge ) {
-    if( this.edges.length == 0 )
-    {
-        return -1;
-    }
-
+EdgeTree.prototype.lower_bound = function( edge ) {
     var min = 0;
-    var max = this.edges.length;
-    var current = ( max - min ) / 2;
-    var ret = this.compare( edge, this.edges[current] );
-    if( ret < 0 )
+    var max = this.edges.length - 1;
+    while( min <= max )
     {
-        var next = current + ( max - current ) / 2;
-        if( next == current )
+        var current = ( min + max ) / 2;
+        var ret = this.compare( edge, this.edges[current] );
+        if( ret < 0 )
         {
-            return -1;
+            min = current + 1;
         }
-        else
+        else if( ret >= 0 )
         {
-            min = current;
-            current = next;
+            max = current;
+            if( min == max )
+            {
+                return current;
+            }
         }
     }
-    else if( ret > 0 )
-    {
-        var next = current - ( current - min ) / 2;
-    }
-    else
-    {
-    }
+    return -1;
 }
