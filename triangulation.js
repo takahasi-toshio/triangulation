@@ -95,6 +95,166 @@ function triangulation()
         context.arc( vertex.getX(), vertex.getY(), 5, 0, Math.PI*2, false );
         context.fill();
     }
+
+    var edgeComparator = new Object;
+    edgeComparator.y = 0;
+    edgeComparator.compare = function( a, b ) {
+        if( a === b )
+        {
+            return 0;
+        }
+        else
+        {
+            var x1 = a.getXAt( this.y );
+            var x2 = b.getXAt( this.y );
+            if( x1 < x2 )
+            {
+                return -1;
+            }
+            else if( x1 > x2 )
+            {
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+    }
+    var edgeTree = new SortedArray( edgeComparator );
+    edgeTree.getLeftEdge = function( edge ) {
+        if( this.size() == 0 )
+        {
+            return null;
+        }
+
+        var index = this.lower_bound( edge );
+        if( index < 0 )
+        {
+            return this.at( this.size() - 1 );
+        }
+
+        var leftEdge = this.at( index );
+        if( this.comparator.compare( leftEdge, edge ) >= 0 )
+        {
+            if( index > 0 )
+            {
+                leftEdge = this.at( index - 1 );
+            }
+            else
+            {
+                leftEdge = null;
+            }
+        }
+
+        return leftEdge;
+    }
+
+    for( var i = 0; i < queue.length; ++i )
+    {
+        var vertex = queue[i];
+        var edge = vertex.getEdge();
+        var type = vertex.getVertexType();
+        if( type == "start" )
+        {
+            edgeComparator.y = vertex.getY();
+
+            edgeTree.insert( edge );
+            edge.setHelper( vertex );
+        }
+        else if( type == "end" )
+        {
+            var previousEdge = vertex.getPreviousVertex().getEdge();
+            var previousHelper = previousEdge.getHelper();
+            if( previousHelper.getVertexType() == "merge" )
+            {
+                context.beginPath();
+                context.moveTo( vertex.getX(), vertex.getY() );
+                context.lineTo( previousHelper.getX(), previousHelper.getY() );
+                context.stroke();
+            }
+            edgeTree.remove( previousEdge );
+
+            edgeComparator.y = vertex.getY();
+        }
+        else if( type == "merge" )
+        {
+            var previousEdge = vertex.getPreviousVertex().getEdge();
+            var previousHelper = previousEdge.getHelper();
+            if( previousHelper.getVertexType() == "merge" )
+            {
+                context.beginPath();
+                context.moveTo( vertex.getX(), vertex.getY() );
+                context.lineTo( previousHelper.getX(), previousHelper.getY() );
+                context.stroke();
+            }
+            edgeTree.remove( previousEdge );
+
+            edgeComparator.y = vertex.getY();
+
+            var leftEdge = edgeTree.getLeftEdge( edge );
+            var leftHelper = leftEdge.getHelper();
+            if( leftHelper.getVertexType() == "merge" )
+            {
+                context.beginPath();
+                context.moveTo( vertex.getX(), vertex.getY() );
+                context.lineTo( leftHelper.getX(), leftHelper.getY() );
+                context.stroke();
+            }
+            leftEdge.setHelper( vertex );
+        }
+        else if( type == "split" )
+        {
+            edgeComparator.y = vertex.getY();
+
+            var leftEdge = edgeTree.getLeftEdge( edge );
+            var leftHelper = leftEdge.getHelper();
+            context.beginPath();
+            context.moveTo( vertex.getX(), vertex.getY() );
+            context.lineTo( leftHelper.getX(), leftHelper.getY() );
+            context.stroke();
+            leftEdge.setHelper( vertex );
+            edgeTree.insert( edge );
+            edge.setHelper( vertex );
+        }
+        else
+        {
+            var previousVertex = vertex.getPreviousVertex();
+            if( previousVertex.getY() < vertex.getY() )
+            {
+                var previousEdge = previousVertex.getEdge();
+                var previousHelper = previousEdge.getHelper();
+                if( previousHelper.getVertexType() == "merge" )
+                {
+                    context.beginPath();
+                    context.moveTo( vertex.getX(), vertex.getY() );
+                    context.lineTo( previousHelper.getX(), previousHelper.getY() );
+                    context.stroke();
+                }
+                edgeTree.remove( previousEdge );
+
+                edgeComparator.y = vertex.getY();
+
+                edgeTree.insert( edge );
+                edge.setHelper( vertex );
+            }
+            else
+            {
+                edgeComparator.y = vertex.getY();
+
+                var leftEdge = edgeTree.getLeftEdge( edge );
+                var leftHelper = leftEdge.getHelper();
+                if( leftHelper.getVertexType() == "merge" )
+                {
+                    context.beginPath();
+                    context.moveTo( vertex.getX(), vertex.getY() );
+                    context.lineTo( leftHelper.getX(), leftHelper.getY() );
+                    context.stroke();
+                }
+                leftEdge.setHelper( vertex );
+            }
+        }
+    }
 }
 
 function Polygon()
@@ -209,10 +369,56 @@ function Edge( vertex )
 {
     this.vertex = vertex;
     vertex.setEdge( this );
+    this.helper = null;
 }
 
 Edge.prototype.getVertex = function() {
     return this.vertex;
+}
+
+Edge.prototype.getXAt = function( y ) {
+    var v1 = this.vertex;
+    var v2 = v1.getNextVertex();
+
+    var x1 = v1.getX();
+    var y1 = v1.getY();
+    if( y == y1 )
+    {
+        return x1;
+    }
+
+    var x2 = v2.getX();
+    var y2 = v2.getY();
+    if( y == y2 )
+    {
+        return x2;
+    }
+
+    if( x1 == x2 )
+    {
+        return x1;
+    }
+
+    if( y1 == y2 )
+    {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    var a = ( y2 - y1 ) / ( x2 - x1 );
+    if( a == 0 )
+    {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    return ( y - y1 ) / a + x1;
+}
+
+Edge.prototype.setHelper = function( vertex ) {
+    this.helper = vertex;
+}
+
+Edge.prototype.getHelper = function() {
+    return this.helper;
 }
 
 function Segment( start, end )
@@ -239,73 +445,4 @@ Segment.prototype.getPosition = function( vertex ) {
     {
         return "online";
     }
-}
-
-function EdgeTree()
-{
-    this.edges = [];
-}
-
-EdgeTree.prototype.getMinX = function( edge ) {
-    var start = edge.getVertex();
-    var end = start.getNextVertex();
-    if( start.getX() < end.getX() )
-    {
-        return start.getX();
-    }
-    else
-    {
-        return end.getX();
-    }
-}
-
-EdgeTree.prototype.compare = function( a, b ) {
-    var ax = this.getMinX( a );
-    var bx = this.getMinX( b );
-    if( ax < bx )
-    {
-        return -1;
-    }
-    else if( ax > bx )
-    {
-        return 1;
-    }
-    else
-    {
-        if( a.getIndex() < b.getIndex() )
-        {
-            return -1;
-        }
-        else if( a.getIndex() > b.getIndex() )
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
-    }
-}
-
-EdgeTree.prototype.lower_bound = function( edge ) {
-    var min = 0;
-    var max = this.edges.length - 1;
-    while( min <= max )
-    {
-        var current = ( min + max ) / 2;
-        var ret = this.compare( edge, this.edges[current] );
-        if( ret < 0 )
-        {
-            min = current + 1;
-        }
-        else if( ret >= 0 )
-        {
-            max = current;
-            if( min == max )
-            {
-                return current;
-            }
-        }
-    }
-    return -1;
 }

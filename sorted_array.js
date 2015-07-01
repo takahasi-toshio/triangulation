@@ -1,7 +1,14 @@
 function SortedArray( comparator )
 {
     this.entries = [];
-    this.comparator = comparator;
+    if( typeof comparator == "function" )
+    {
+        this.comparator = { compare: comparator };
+    }
+    else
+    {
+        this.comparator = comparator;
+    }
 }
 
 SortedArray.prototype.lower_bound = function( entry ) {
@@ -10,7 +17,7 @@ SortedArray.prototype.lower_bound = function( entry ) {
     while( min <= max )
     {
         var current = ( min + max ) >> 1;
-        var ret = this.comparator( entry, this.entries[current] );
+        var ret = this.comparator.compare( entry, this.entries[current] );
         if( ret <= 0 )
         {
             max = current;
@@ -36,7 +43,7 @@ SortedArray.prototype.insert = function( entry ) {
     }
     else
     {
-        if( this.comparator( entry, this.entries[index] ) == 0 )
+        if( this.comparator.compare( entry, this.entries[index] ) == 0 )
         {
             return false;
         }
@@ -60,7 +67,7 @@ SortedArray.prototype.find = function( entry ) {
     }
     else
     {
-        if( this.comparator( entry, this.entries[index] ) == 0 )
+        if( this.comparator.compare( entry, this.entries[index] ) == 0 )
         {
             return index;
         }
